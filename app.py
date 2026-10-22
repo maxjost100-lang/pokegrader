@@ -2,8 +2,8 @@ import json
 import re
 import requests
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+from PIL import Image
 
 st.set_page_config(page_title="PokéGrader", page_icon="🃏")
 st.title("🃏 PokéGrader")
@@ -13,8 +13,8 @@ if "GEMINI_API_KEY" not in st.secrets:
     st.error("Clé API manquante. Ajoute GEMINI_API_KEY dans les Secrets de Streamlit.")
     st.stop()
 
-client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-MODELE = "gemini-2.5-flash"
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+modele = genai.GenerativeModel("gemini-2.5-flash")
 
 PROMPT = """Tu es un expert en grading de cartes Pokémon (PSA, PCA, CGC, BGS).
 Analyse la ou les images de cette carte et réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, avec ces clés:
@@ -37,11 +37,9 @@ Sois strict et réaliste, comme un vrai grader. Si l'image est floue ou mal cadr
 
 
 def analyser(fichiers):
-    contenu = []
-    for f in fichiers:
-        contenu.append(types.Part.from_bytes(data=f.getvalue(), mime_type=f.type or "image/jpeg"))
+    contenu = [Image.open(f) for f in fichiers]
     contenu.append(PROMPT)
-    rep = client.models.generate_content(model=MODELE, contents=contenu)
+    rep = modele.generate_content(contenu)
     match = re.search(r"\{.*\}", rep.text, re.DOTALL)
     return json.loads(match.group(0))
 
